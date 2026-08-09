@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="theme-color" content="#111827" />
+  <title>Friend-Ai</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="app">
+    <header><div><h1>Friend-Ai</h1><p>Your AI chat buddy</p></div><button id="clear" title="Clear chat">Clear</button></header>
+    <section id="chat" class="chat" aria-live="polite"></section>
+    <form id="form" class="composer">
+      <textarea id="message" rows="1" placeholder="Message Friend-Ai…" autocomplete="off"></textarea>
+      <button id="send" type="submit">Send</button>
+    </form>
+    <p class="note">Friend-Ai can make mistakes. Keep your API key private.</p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

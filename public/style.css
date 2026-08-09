@@ -1,0 +1,14 @@
+* { box-sizing: border-box; }
+body { margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; background:#0b1020; color:#f8fafc; }
+.app { max-width:800px; height:100dvh; margin:auto; display:flex; flex-direction:column; background:#111827; }
+header { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid #263244; }
+h1 { margin:0; font-size:22px; } header p { margin:3px 0 0; color:#94a3b8; font-size:13px; }
+button { border:0; border-radius:10px; padding:10px 15px; background:#2563eb; color:white; font-weight:700; cursor:pointer; }
+#clear { background:#253047; }
+.chat { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px; }
+.msg { max-width:82%; padding:12px 15px; border-radius:16px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
+.user { align-self:flex-end; background:#2563eb; } .assistant { align-self:flex-start; background:#1f2937; }
+.composer { display:flex; gap:10px; padding:12px; border-top:1px solid #263244; }
+textarea { flex:1; resize:none; max-height:140px; border:1px solid #334155; border-radius:12px; padding:12px; background:#0f172a; color:#fff; outline:none; font:inherit; }
+.note { margin:0; padding:0 14px 10px; text-align:center; color:#64748b; font-size:11px; }
+@media (max-width:600px) { .msg{max-width:90%;} .app{width:100%;} }

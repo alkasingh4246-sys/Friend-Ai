@@ -1,0 +1,8 @@
+{
+  "name": "friend-ai",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "dependencies": { "openai": "^5.19.0" },
+  "scripts": { "start": "vercel dev" }
+}
