@@ -12,13 +12,15 @@ let busy = false;
 function loadHistory() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return Array.isArray(saved) ? saved.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string').slice(-MAX_HISTORY) : [];
+    return Array.isArray(saved)
+      ? saved.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string').slice(-MAX_HISTORY)
+      : [];
   } catch { return []; }
 }
 
 function saveHistory() {
   history = history.slice(-MAX_HISTORY);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch {}
 }
 
 function render() {
@@ -26,7 +28,7 @@ function render() {
   if (!history.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.innerHTML = '<strong>👋 Hey!</strong> I’m Friend-Ai. Ask me anything, or just start chatting.';
+    empty.innerHTML = '<strong>👋 Hey!</strong><span>I’m Friend-Ai. Ask me anything, or just start chatting.</span>';
     chat.appendChild(empty);
     return;
   }
@@ -39,13 +41,22 @@ function addBubble(role, text, save = true) {
   el.className = `msg ${role}`;
   el.textContent = text;
   chat.appendChild(el);
-  if (save) { history.push({ role, content: text }); saveHistory(); }
+  if (save) {
+    history.push({ role, content: text });
+    saveHistory();
+  }
   scrollToBottom();
   return el;
 }
 
-function scrollToBottom() { chat.scrollTop = chat.scrollHeight; }
-function setBusy(value) { busy = value; send.disabled = value; send.textContent = value ? '…' : '➤'; }
+function scrollToBottom() { requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; }); }
+
+function setBusy(value) {
+  busy = value;
+  send.disabled = value;
+  send.textContent = value ? '…' : '➤';
+  input.disabled = value;
+}
 
 render();
 
@@ -64,7 +75,10 @@ input.addEventListener('input', () => {
 });
 
 input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
 });
 
 form.addEventListener('submit', async e => {
@@ -84,9 +98,11 @@ form.addEventListener('submit', async e => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: history })
     });
+
     let data;
-    try { data = await res.json(); } catch { throw new Error('Invalid server response'); }
-    if (!res.ok) throw new Error(data.error || 'Request failed');
+    try { data = await res.json(); } catch { throw new Error('Server returned an invalid response.'); }
+    if (!res.ok) throw new Error(data.error || 'Request failed.');
+
     pending.remove();
     addBubble('assistant', data.reply || 'I’m here — what’s up?');
   } catch (err) {
