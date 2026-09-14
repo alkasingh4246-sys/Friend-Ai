@@ -5,18 +5,31 @@ const MAX_MESSAGE_LENGTH = 4000;
 const MAX_TOTAL_CHARS = 30000;
 
 module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
+  // Simple health check so the deployment can be tested without exposing secrets.
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      service: 'Friend-Ai API',
+      configured: Boolean(process.env.OPENAI_API_KEY)
+    });
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     const { messages } = req.body || {};
-    if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages must be an array' });
-    if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' });
+    if (!Array.isArray(messages)) {
+      return res.status(400).json({ error: 'messages must be an array' });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' });
+    }
 
     const safe = messages
       .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
