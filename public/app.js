@@ -3,22 +3,97 @@ const form = document.querySelector('#form');
 const input = document.querySelector('#message');
 const send = document.querySelector('#send');
 const clear = document.querySelector('#clear');
-let history = JSON.parse(localStorage.getItem('friendai-history') || '[]');
+const STORAGE_KEY = 'friendai-history';
+const MAX_HISTORY = 60;
 
-function render() { chat.innerHTML=''; for (const m of history) addBubble(m.role,m.content,false); chat.scrollTop=chat.scrollHeight; }
-function addBubble(role,text,save=true) { const el=document.createElement('div'); el.className=`msg ${role}`; el.textContent=text; chat.appendChild(el); if(save){history.push({role,content:text}); localStorage.setItem('friendai-history',JSON.stringify(history));} chat.scrollTop=chat.scrollHeight; return el; }
+let history = loadHistory();
+let busy = false;
+
+function loadHistory() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(saved) ? saved.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string').slice(-MAX_HISTORY) : [];
+  } catch { return []; }
+}
+
+function saveHistory() {
+  history = history.slice(-MAX_HISTORY);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+}
+
+function render() {
+  chat.replaceChildren();
+  if (!history.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.innerHTML = '<strong>👋 Hey!</strong> I’m Friend-Ai. Ask me anything, or just start chatting.';
+    chat.appendChild(empty);
+    return;
+  }
+  for (const m of history) addBubble(m.role, m.content, false);
+  scrollToBottom();
+}
+
+function addBubble(role, text, save = true) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  el.textContent = text;
+  chat.appendChild(el);
+  if (save) { history.push({ role, content: text }); saveHistory(); }
+  scrollToBottom();
+  return el;
+}
+
+function scrollToBottom() { chat.scrollTop = chat.scrollHeight; }
+function setBusy(value) { busy = value; send.disabled = value; send.textContent = value ? '…' : '➤'; }
+
 render();
-clear.onclick=()=>{history=[];localStorage.removeItem('friendai-history');render();};
-input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,140)+'px';});
-input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit();}});
-form.addEventListener('submit',async e=>{
- e.preventDefault(); const text=input.value.trim(); if(!text||send.disabled)return;
- addBubble('user',text); input.value=''; input.style.height='auto'; send.disabled=true; send.textContent='…';
- const pending=addBubble('assistant','Thinking…',false);
- try {
-   const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:history})});
-   const data=await res.json(); if(!res.ok) throw new Error(data.error||'Request failed');
-   pending.remove(); addBubble('assistant',data.reply);
- } catch(err) { pending.textContent='Sorry, something went wrong. '+err.message; pending.className='msg assistant'; }
- finally {send.disabled=false;send.textContent='Send';input.focus();}
+
+clear.onclick = () => {
+  if (!history.length || confirm('Clear this chat?')) {
+    history = [];
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+    input.focus();
+  }
+};
+
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+});
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text || busy) return;
+
+  addBubble('user', text);
+  input.value = '';
+  input.style.height = 'auto';
+  setBusy(true);
+  const pending = addBubble('assistant', 'Thinking…', false);
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error('Invalid server response'); }
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    pending.remove();
+    addBubble('assistant', data.reply || 'I’m here — what’s up?');
+  } catch (err) {
+    pending.textContent = `⚠️ ${err.message || 'Something went wrong.'}`;
+    pending.dataset.error = 'true';
+  } finally {
+    setBusy(false);
+    input.focus();
+  }
 });
