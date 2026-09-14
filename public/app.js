@@ -39,10 +39,10 @@ function render() {
 function addBubble(role, text, save = true) {
   const el = document.createElement('div');
   el.className = `msg ${role}`;
-  el.textContent = text;
+  el.textContent = String(text ?? '');
   chat.appendChild(el);
   if (save) {
-    history.push({ role, content: text });
+    history.push({ role, content: String(text ?? '') });
     saveHistory();
   }
   scrollToBottom();
@@ -60,6 +60,16 @@ function setBusy(value) {
   input.disabled = value;
 }
 
+function formatError(value, status) {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (value && typeof value === 'object') {
+    if (typeof value.message === 'string' && value.message.trim()) return value.message;
+    if (typeof value.error === 'string' && value.error.trim()) return value.error;
+    try { return JSON.stringify(value); } catch {}
+  }
+  return `Request failed (${status}).`;
+}
+
 async function readResponse(res) {
   const raw = await res.text();
   if (!raw.trim()) throw new Error(`Server returned an empty response (${res.status}).`);
@@ -74,7 +84,7 @@ async function readResponse(res) {
     throw new Error(hint);
   }
 
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
+  if (!res.ok) throw new Error(formatError(data.error ?? data.message, res.status));
   if (typeof data.reply !== 'string') throw new Error('API response is missing a reply.');
   return data.reply;
 }
@@ -124,7 +134,8 @@ form.addEventListener('submit', async e => {
     pending.remove();
     addBubble('assistant', reply);
   } catch (err) {
-    pending.textContent = `⚠️ ${err.message || 'Something went wrong.'}`;
+    const message = err instanceof Error ? err.message : formatError(err);
+    pending.textContent = `⚠️ ${message || 'Something went wrong.'}`;
     pending.dataset.error = 'true';
   } finally {
     setBusy(false);
