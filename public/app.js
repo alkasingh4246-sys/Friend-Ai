@@ -49,13 +49,34 @@ function addBubble(role, text, save = true) {
   return el;
 }
 
-function scrollToBottom() { requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; }); }
+function scrollToBottom() {
+  requestAnimationFrame(() => { chat.scrollTop = chat.scrollHeight; });
+}
 
 function setBusy(value) {
   busy = value;
   send.disabled = value;
   send.textContent = value ? '…' : '➤';
   input.disabled = value;
+}
+
+async function readResponse(res) {
+  const raw = await res.text();
+  if (!raw.trim()) throw new Error(`Server returned an empty response (${res.status}).`);
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    const hint = raw.includes('<!DOCTYPE') || raw.includes('<html')
+      ? 'Vercel returned a web page instead of the API response.'
+      : `Server returned invalid JSON (${res.status}).`;
+    throw new Error(hint);
+  }
+
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
+  if (typeof data.reply !== 'string') throw new Error('API response is missing a reply.');
+  return data.reply;
 }
 
 render();
@@ -95,16 +116,13 @@ form.addEventListener('submit', async e => {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({ messages: history })
     });
 
-    let data;
-    try { data = await res.json(); } catch { throw new Error('Server returned an invalid response.'); }
-    if (!res.ok) throw new Error(data.error || 'Request failed.');
-
+    const reply = await readResponse(res);
     pending.remove();
-    addBubble('assistant', data.reply || 'I’m here — what’s up?');
+    addBubble('assistant', reply);
   } catch (err) {
     pending.textContent = `⚠️ ${err.message || 'Something went wrong.'}`;
     pending.dataset.error = 'true';
